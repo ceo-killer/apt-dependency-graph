@@ -1,0 +1,8 @@
+{
+  "package": "make",
+  "source": "https://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.xz",
+  "test_mode": false,
+  "version": "4.3-4.1build2",
+  "output": "../output/make.svg",
+  "max_depth": 3
+}

@@ -48,7 +48,7 @@ class CliTests(unittest.TestCase):
         """Analyse a local repository without network access."""
         status, output, errors = self.invoke()
         self.assertEqual(status, 0)
-        self.assertIn("A@1:all -> B@1:all", output)
+        self.assertEqual(output.splitlines(), ["B=1", "A=1"])
         self.assertEqual(errors, "")
 
     def test_exact_root_version_is_required(self):
@@ -73,18 +73,18 @@ class CliTests(unittest.TestCase):
         self.settings["max_depth"] = 0
         status, output, errors = self.invoke()
         self.assertEqual(status, 0)
-        self.assertIn("A@1:all", output)
-        self.assertNotIn("B@1:all", output)
-        self.assertEqual(errors, "")
+        self.assertIn("A=1", output)
+        self.assertNotIn("B=1", output)
+        self.assertIn("только к раскрытой части", errors)
 
-    def test_cycle_is_preserved_without_hanging(self):
-        """The CLI handles a cyclic graph as finite dependency data."""
+    def test_cycle_prevents_a_false_dependency_order(self):
+        """Report why a strict dependency-first order cannot exist."""
         self.write_repository({"A": ["B"], "B": ["A"]})
         status, output, errors = self.invoke()
-        self.assertEqual(status, 0)
-        self.assertIn("A@1:all -> B@1:all", output)
-        self.assertIn("B@1:all -> A@1:all", output)
-        self.assertEqual(errors, "")
+        self.assertEqual(status, 1)
+        self.assertEqual(output, "")
+        self.assertIn("cycle", errors.lower())
+        self.assertNotIn("Traceback", errors)
 
 
 if __name__ == "__main__":

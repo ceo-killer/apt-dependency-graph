@@ -1,0 +1,8 @@
+{
+  "package": "gzip",
+  "source": "https://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.xz",
+  "test_mode": false,
+  "version": "1.12-1ubuntu3",
+  "output": "../output/gzip.svg",
+  "max_depth": 3
+}

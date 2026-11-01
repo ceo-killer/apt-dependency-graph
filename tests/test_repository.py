@@ -69,6 +69,15 @@ class RepositoryTests(unittest.TestCase):
         with self.assertRaises(RepositoryError):
             repo.get("unknown")
 
+    def test_preloaded_index(self):
+        """The comparison can use identical bytes without another download."""
+        with patch("apt_graph.repository.urlopen") as download:
+            repo = Repository.from_index(INDEX)
+        download.assert_not_called()
+        self.assertEqual(repo.get("root").version, "2.0")
+        self.assertEqual(repo.dependencies(repo.get("root", "1.0"))[1].version,
+                         "1.10")
+
     def test_compressed_indices(self):
         """Plain, gzip and xz input produce the same package identity."""
         for data in [INDEX.encode(), gzip.compress(INDEX.encode()),

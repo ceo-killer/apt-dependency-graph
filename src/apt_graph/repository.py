@@ -183,14 +183,25 @@ class Repository:
 
     def __init__(self, source: str, test_mode: bool = False):
         """Read a test graph or fetch a Packages index directly."""
-        self.warnings: list[str] = []
-        self._packages: dict[str, list[Package]] = {}
-        self._providers: dict[str, list[tuple[Package, Relation]]] = {}
         if test_mode:
             packages = _test_packages(source)
         else:
             text = _decode_index(_download(source))
             packages = [_package(record) for record in _records(text)]
+        self._initialize(packages)
+
+    @classmethod
+    def from_index(cls, text: str):
+        """Read already downloaded metadata for reproducible comparisons."""
+        repository = cls.__new__(cls)
+        repository._initialize([_package(item) for item in _records(text)])
+        return repository
+
+    def _initialize(self, packages: list[Package]) -> None:
+        """Build version and virtual-provider lookups for parsed records."""
+        self.warnings: list[str] = []
+        self._packages: dict[str, list[Package]] = {}
+        self._providers: dict[str, list[tuple[Package, Relation]]] = {}
         if not packages:
             raise RepositoryError("Индекс не содержит пакетов")
         for package in packages:
