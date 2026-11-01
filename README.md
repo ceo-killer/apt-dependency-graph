@@ -40,10 +40,17 @@ Windows (PowerShell):
 При необходимости D2 можно установить из проверенного официального архива:
 
 ```powershell
-python tools/install_d2.py .cache/d2
+py -3 tools/install_d2.py .cache/d2
 $env:PATH = "$PWD\.cache\d2;$env:PATH"
 .\run.bat --config examples/demo.json
 ```
+
+Если команда `python` печатает только `Python` и не выполняет скрипт,
+проверьте `py -3 --version`. Нужна версия 3.10 или новее.
+При отсутствии рабочего интерпретатора установите
+[Python для Windows](https://www.python.org/downloads/windows/)
+и заново откройте терминал. Скрипт run.bat проверяет сначала `py -3`,
+затем `python` и сообщает об ошибке, если подходящий Python не найден.
 
 На macOS и Linux:
 
@@ -171,8 +178,8 @@ Actions для Linux, Windows и macOS. После установки D2 доп�
 
 ```bat
 set PYTHONPATH=src
-python -m unittest discover -s tests -v
-python tools/check_rules.py
+py -3 -m unittest discover -s tests -v
+py -3 tools/check_rules.py
 ```
 
 ## Этапы разработки
