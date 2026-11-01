@@ -1,7 +1,10 @@
 """Checks for the isolated apt comparison and its output interpretation."""
 
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from http.client import IncompleteRead
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -104,4 +107,31 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(report["analyser_only"], [])
         self.assertEqual(report["apt_only"], [("root", "early")])
         self.assertEqual(report["order"], ["leaf", "root"])
+        self.assertEqual(report["graph_nodes_outside_apt_downloads"],
+                         ["leaf", "root"])
         self.assertTrue((self.folder / "root.dot").is_file())
+
+    def test_main_reports_interrupted_http(self):
+        """A partial HTTP response produces a controlled failure code."""
+        response = MagicMock()
+        response.__enter__.return_value.read.side_effect = IncompleteRead(b"x")
+        errors = io.StringIO()
+        with patch.object(compare_apt, "urlopen", return_value=response):
+            with redirect_stderr(errors):
+                result = compare_apt.main(["--workdir", str(self.folder)])
+        self.assertEqual(result, 1)
+        self.assertIn("Comparison failed:", errors.getvalue())
+        self.assertNotIn("Traceback", errors.getvalue())
+        self.assertFalse((self.folder / "Packages.xz").exists())
+
+    def test_main_reports_corrupted_cached_snapshot(self):
+        """A corrupt cached xz snapshot fails before running apt commands."""
+        (self.folder / "Packages.xz").write_bytes(b"invalid xz data")
+        errors = io.StringIO()
+        with patch.object(compare_apt, "run_apt") as apt:
+            with redirect_stderr(errors):
+                result = compare_apt.main(["--workdir", str(self.folder)])
+        self.assertEqual(result, 1)
+        self.assertIn("Comparison failed:", errors.getvalue())
+        self.assertNotIn("Traceback", errors.getvalue())
+        apt.assert_not_called()

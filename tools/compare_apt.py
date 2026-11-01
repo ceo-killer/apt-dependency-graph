@@ -9,6 +9,7 @@ import re
 import shlex
 import subprocess
 import sys
+from http.client import HTTPException
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -133,6 +134,18 @@ def order_result(graph) -> dict:
         return {"cycle": [graph.nodes[key].name for key in error.cycle]}
 
 
+def plan_result(graph, simulation, uris):
+    """Compare package sets in both directions and retain native orders."""
+    downloads = download_order(uris)
+    nodes = {item.name for item in graph.nodes.values()}
+    return {
+        "apt_planned_download_order": downloads,
+        "apt_simulated_unpack_order": unpack_order(simulation),
+        "apt_downloads_outside_graph": sorted(set(downloads) - nodes),
+        "graph_nodes_outside_apt_downloads": sorted(nodes - set(downloads)),
+    }
+
+
 def compare_package(repo, folder, output, name, depth):
     """Save native output and report differences for one exact root version."""
     root = repo.get(name)
@@ -161,13 +174,7 @@ def compare_package(repo, folder, output, name, depth):
         "analyser_only": sorted(actual - mandatory),
         "apt_only": sorted(mandatory - actual),
         "apt_additional_relations": len(other),
-        "apt_planned_download_order": download_order(uris),
-        "apt_simulated_unpack_order": unpack_order(simulation),
-        "apt_downloads_outside_graph": sorted(
-            set(download_order(uris))
-            - {item.name for item in graph.nodes.values()}
-        ),
-        **order_result(graph),
+        **plan_result(graph, simulation, uris), **order_result(graph),
     }
 
 
@@ -206,7 +213,7 @@ def main(argv=None) -> int:
         formatted = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
         (output / "report.json").write_text(formatted, encoding="utf-8")
         print(formatted, end="")
-    except (OSError, ValueError, lzma.LZMAError,
+    except (OSError, ValueError, HTTPException, lzma.LZMAError,
             subprocess.SubprocessError) as error:
         print(f"Comparison failed: {error}", file=sys.stderr)
         return 1

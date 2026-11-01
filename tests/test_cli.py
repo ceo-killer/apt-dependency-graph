@@ -6,8 +6,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from apt_graph.cli import main
+from apt_graph.visualize import RenderError
 
 
 class CliTests(unittest.TestCase):
@@ -24,6 +26,17 @@ class CliTests(unittest.TestCase):
             "version": "1", "output": "graph.svg", "max_depth": 3,
         }
         self.write_repository({"A": ["B"], "B": []})
+        renderer = patch("apt_graph.cli.render_svg",
+                         side_effect=self.fake_render)
+        self.render = renderer.start()
+        self.addCleanup(renderer.stop)
+
+    def fake_render(self, graph, output):
+        """Capture the real built graph without depending on installed D2."""
+        self.graph = graph
+        output.write_text('<svg xmlns="http://www.w3.org/2000/svg"/>',
+                          encoding="utf-8")
+        return output
 
     def write_repository(self, edges):
         """Save a test graph in the documented JSON format."""
@@ -48,7 +61,9 @@ class CliTests(unittest.TestCase):
         """Analyse a local repository without network access."""
         status, output, errors = self.invoke()
         self.assertEqual(status, 0)
-        self.assertEqual(output.splitlines(), ["B=1", "A=1"])
+        self.assertIn("graph.svg", output)
+        self.assertTrue((self.base / "graph.svg").is_file())
+        self.assertEqual(self.graph.edges["A@1:all"], ["B@1:all"])
         self.assertEqual(errors, "")
 
     def test_exact_root_version_is_required(self):
@@ -73,17 +88,27 @@ class CliTests(unittest.TestCase):
         self.settings["max_depth"] = 0
         status, output, errors = self.invoke()
         self.assertEqual(status, 0)
-        self.assertIn("A=1", output)
-        self.assertNotIn("B=1", output)
-        self.assertIn("только к раскрытой части", errors)
+        self.assertEqual(set(self.graph.nodes), {"A@1:all"})
+        self.assertIn("graph.svg", output)
+        self.assertIn("границе глубины", errors)
 
-    def test_cycle_prevents_a_false_dependency_order(self):
-        """Report why a strict dependency-first order cannot exist."""
+    def test_cycle_can_be_rendered(self):
+        """A cycle is valid graph data and does not prevent visualization."""
         self.write_repository({"A": ["B"], "B": ["A"]})
+        status, output, errors = self.invoke()
+        self.assertEqual(status, 0)
+        self.assertIn("graph.svg", output)
+        self.assertEqual(self.graph.edges["A@1:all"], ["B@1:all"])
+        self.assertEqual(self.graph.edges["B@1:all"], ["A@1:all"])
+        self.assertEqual(errors, "")
+
+    def test_renderer_error_has_a_readable_message(self):
+        """Return a failure without claiming that an SVG was generated."""
+        self.render.side_effect = RenderError("D2 is absent from PATH")
         status, output, errors = self.invoke()
         self.assertEqual(status, 1)
         self.assertEqual(output, "")
-        self.assertIn("cycle", errors.lower())
+        self.assertIn("D2", errors)
         self.assertNotIn("Traceback", errors)
 
 

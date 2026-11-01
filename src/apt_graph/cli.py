@@ -1,12 +1,12 @@
-"""Print a dependency-first order for the requested graph."""
+"""Render the requested Ubuntu dependency graph as SVG."""
 
 import argparse
 import sys
 
 from apt_graph.config import ConfigError, load_config
 from apt_graph.graph import build_graph
-from apt_graph.order import CycleError, dependency_order
 from apt_graph.repository import Repository, RepositoryError
+from apt_graph.visualize import RenderError, render_svg
 
 SUCCESS = 0
 FAILURE = 1
@@ -20,16 +20,15 @@ def _arguments(argv):
 
 
 def _run(arguments):
-    """Build a graph and show dependency-first DFS finishing order."""
+    """Read package metadata, build the graph and save its diagram."""
     config = load_config(arguments.config)
     repository = Repository(config.source, config.test_mode)
     package = repository.get(config.package, config.version)
     graph = build_graph(repository, package, config.max_depth)
-    for node in dependency_order(graph):
-        package = graph.nodes[node]
-        print(f"{package.name}={package.version}")
+    output = render_svg(graph, config.output)
+    print(f"SVG: {output}")
     if graph.truncated:
-        print("Порядок относится только к раскрытой части графа.",
+        print("Вершины на границе глубины не раскрыты.",
               file=sys.stderr)
 
 
@@ -38,7 +37,7 @@ def main(argv=None):
     arguments = _arguments(argv)
     try:
         _run(arguments)
-    except (ConfigError, RepositoryError, CycleError, OSError) as error:
+    except (ConfigError, RepositoryError, RenderError, OSError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return FAILURE
     return SUCCESS
