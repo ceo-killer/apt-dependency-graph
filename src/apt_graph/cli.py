@@ -1,9 +1,10 @@
-"""Show direct dependencies of the requested package version."""
+"""Build and display a bounded dependency graph."""
 
 import argparse
 import sys
 
 from apt_graph.config import ConfigError, load_config
+from apt_graph.graph import build_graph
 from apt_graph.repository import Repository, RepositoryError
 
 SUCCESS = 0
@@ -18,12 +19,15 @@ def _arguments(argv):
 
 
 def _run(arguments):
-    """Load the requested version and print its direct dependencies."""
+    """Build a graph with iterative DFS and display its adjacency list."""
     config = load_config(arguments.config)
     repository = Repository(config.source, config.test_mode)
     package = repository.get(config.package, config.version)
-    for dependency in repository.dependencies(package):
-        print(f"{dependency.name}={dependency.version}")
+    graph = build_graph(repository, package, config.max_depth)
+    for node, children in graph.edges.items():
+        print(f"{node} -> {', '.join(children) or '(нет зависимостей)'}")
+    if graph.truncated:
+        print("Граница глубины: " + ", ".join(sorted(graph.truncated)))
 
 
 def main(argv=None):

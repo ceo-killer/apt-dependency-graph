@@ -1,0 +1,8 @@
+{
+  "package": "A",
+  "source": "single-repository.json",
+  "test_mode": true,
+  "version": "1",
+  "output": "../output/single.svg",
+  "max_depth": 3
+}

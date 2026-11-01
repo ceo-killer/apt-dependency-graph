@@ -48,7 +48,7 @@ class CliTests(unittest.TestCase):
         """Analyse a local repository without network access."""
         status, output, errors = self.invoke()
         self.assertEqual(status, 0)
-        self.assertIn("B=1", output)
+        self.assertIn("A@1:all -> B@1:all", output)
         self.assertEqual(errors, "")
 
     def test_exact_root_version_is_required(self):
@@ -67,6 +67,24 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertEqual(output, "")
         self.assertIn("Z=1", errors)
+
+    def test_depth_zero_only_contains_root(self):
+        """Keep the root without revealing its dependencies at depth zero."""
+        self.settings["max_depth"] = 0
+        status, output, errors = self.invoke()
+        self.assertEqual(status, 0)
+        self.assertIn("A@1:all", output)
+        self.assertNotIn("B@1:all", output)
+        self.assertEqual(errors, "")
+
+    def test_cycle_is_preserved_without_hanging(self):
+        """The CLI handles a cyclic graph as finite dependency data."""
+        self.write_repository({"A": ["B"], "B": ["A"]})
+        status, output, errors = self.invoke()
+        self.assertEqual(status, 0)
+        self.assertIn("A@1:all -> B@1:all", output)
+        self.assertIn("B@1:all -> A@1:all", output)
+        self.assertEqual(errors, "")
 
 
 if __name__ == "__main__":

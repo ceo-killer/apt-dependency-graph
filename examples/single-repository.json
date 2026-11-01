@@ -1,0 +1,8 @@
+{
+  "packages": {
+    "A": {
+      "version": "1",
+      "dependencies": []
+    }
+  }
+}

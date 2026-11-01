@@ -1,0 +1,8 @@
+{
+  "package": "A",
+  "source": "chain-repository.json",
+  "test_mode": true,
+  "version": "1",
+  "output": "../output/chain.svg",
+  "max_depth": 3
+}
